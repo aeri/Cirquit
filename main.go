@@ -4,8 +4,29 @@ import (
 	"fmt"
 	"bufio"
 	"os"
+	"strings"
+	"strconv"
+	"log"
 	"github.com/fatih/color"
+	g "github.com/soniah/gosnmp"
 )
+
+func is_ipv4(host string) bool {
+	parts := strings.Split(host, ".")
+	if len(parts) < 4 {
+		return false
+	}
+	for _,x := range parts {
+		if i, err := strconv.Atoi(x); err == nil {
+			if i < 0 || i > 255 {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
+}
 
 func showMenu() (int) {
 	color.Magenta("MENU")
@@ -29,8 +50,20 @@ func main() {
 	// Enter target IP
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter target IP: ")
-	text, _ := reader.ReadString('\n')
-	fmt.Println(text)
+	ipN, _ := reader.ReadString('\n')
+	ip := strings.TrimSuffix(ipN, "\n")
+	isValidIp := is_ipv4(ip)
+	if !isValidIp {
+		color.Red("The IP introduced is TRASH")
+		os.Exit(3)
+	}
+
+	g.Default.Target = ip
+	err := g.Default.Connect()
+	if err != nil {
+		log.Fatalf("Connect() err: %v", err)
+	}
+	defer g.Default.Conn.Close()
 
 	validEntry := false
 	for !validEntry {
