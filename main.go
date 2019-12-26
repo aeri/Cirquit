@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"time"
 	"bufio"
-	"os"
-	"strings"
-	"strconv"
-	"log"
+	"fmt"
 	"github.com/fatih/color"
 	g "github.com/soniah/gosnmp"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 func printValue(pdu g.SnmpPDU) error {
@@ -38,15 +38,20 @@ func retPorts() {
 
 func setPort() {
 
-	oid1 := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
+	oid := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
 
-	var seg,port int
-	fmt.Print("Enter segment: ")
-	fmt.Scanf("%d", &seg)
-	oid += "100" + strconv.Itoa(seg)
+	// Obtenemos primero el valor asociado al segmento 2:
+
+	var seg, port int
 
 	fmt.Print("Enter port: ")
 	fmt.Scanf("%d", &port)
+
+	fmt.Print("Enter segment: ")
+	fmt.Scanf("%d", &seg)
+	oid1 := oid + "100" + strconv.Itoa(seg)
+
+	oid2 := oid + strconv.Itoa(port)
 
 	result, err := g.Default.Get([]string{oid1})
 	if err != nil {
@@ -54,20 +59,164 @@ func setPort() {
 		os.Exit(1)
 	}
 
+	var segInt interface{}
+	var seg2Int interface{}
+
 	for _, variable := range result.Variables {
 		if variable.Type != g.OctetString {
-			fmt.Printf("%d\n", g.ToBigInt(variable.Value))
+			//fmt.Printf("%d\n", g.ToBigInt(variable.Value))
+			segInt = (variable.Value)
 		}
+	}
+
+	// Lo establecemos para el puerto port:
+	pdu := g.SnmpPDU{
+		Name:  oid2,
+		Type:  g.Integer,
+		Value: segInt,
+	}
+
+	_, err = g.Default.Set([]g.SnmpPDU{pdu})
+
+	result, err = g.Default.Get([]string{oid2})
+	for _, variable := range result.Variables {
+		if variable.Type != g.OctetString {
+			//fmt.Printf("%d\n", g.ToBigInt(variable.Value))
+			seg2Int = (variable.Value)
+		}
+
+	}
+	if seg2Int == segInt {
+		color.Green("The segment has been changed")
+	} else {
+		color.Red("ERROR")
 	}
 }
 
+func getIP() {
+
+	oidConf := ".1.3.6.1.4.1.43.10.27.1.1.1.15.1"
+
+	oidIP := ".1.3.6.1.4.1.43.10.28.1.1.2."
+	oidMask := ".1.3.6.1.4.1.43.10.28.1.1.3."
+	oidGate := ".1.3.6.1.4.1.43.10.28.1.1.4."
+	var resInt interface{}
+
+	//Comprobar los valores de direccionamiento IP:
+	result, err := g.Default.Get([]string{oidConf})
+	if err != nil {
+		fmt.Printf("Get() Error: %v\n", err)
+		os.Exit(1)
+	}
+	for _, variable := range result.Variables {
+		if variable.Type != g.OctetString {
+			//fmt.Printf("%d\n", g.ToBigInt(variable.Value))
+			resInt = (variable.Value)
+		}
+
+	}
+	// Para comprobar el valor de la dirección IP del hub:
+
+	oidIP += fmt.Sprintf("%v", resInt)
+
+	result, err = g.Default.Get([]string{oidIP})
+	if err != nil {
+		fmt.Printf("Get() Error: %v\n", err)
+		os.Exit(1)
+	}
+	for _, variable := range result.Variables {
+		fmt.Print("IP Address: ")
+		c := color.New(color.FgYellow)
+		c.Println(variable.Value)
+	}
+
+	// Para comprobar el valor de la máscara de la dirección IP del hub:
+
+	oidMask += fmt.Sprintf("%v", resInt)
+
+	result, err = g.Default.Get([]string{oidMask})
+	if err != nil {
+		fmt.Printf("Get() Error: %v\n", err)
+		os.Exit(1)
+	}
+	for _, variable := range result.Variables {
+		fmt.Print("Subnet Mask: ")
+		c := color.New(color.FgCyan)
+		c.Println(variable.Value)
+	}
+
+	// Para comprobar el valor de la dirección IP del router por defecto:
+
+	oidGate += fmt.Sprintf("%v", resInt)
+
+	result, err = g.Default.Get([]string{oidGate})
+	if err != nil {
+		fmt.Printf("Get() Error: %v\n", err)
+		os.Exit(1)
+	}
+	for _, variable := range result.Variables {
+		fmt.Print("Default Router: ")
+		c := color.New(color.FgBlue)
+		c.Println(variable.Value)
+	}
+
+}
+
+func setIP() {
+	oid := ".1.3.6.1.4.1.43.10.28.1.1.4."
+	oidConf := ".1.3.6.1.4.1.43.10.27.1.1.1.15.1"
+
+	//Comprobar los valores de direccionamiento IP:
+	var resInt interface{}
+	result, err := g.Default.Get([]string{oidConf})
+	if err != nil {
+		fmt.Printf("Get() Error: %v\n", err)
+		os.Exit(1)
+	}
+	for _, variable := range result.Variables {
+		if variable.Type != g.OctetString {
+			resInt = (variable.Value)
+		}
+
+	}
+	// Para comprobar el valor de la dirección IP del hub:
+
+	oid += fmt.Sprintf("%v", resInt)
+
+	// Obtenemos primero el valor asociado al segmento 2:
+
+	var ip string
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter gateway IP: ")
+	ipN, _ := reader.ReadString('\n')
+	ip = strings.TrimSuffix(ipN, "\n")
+
+	isValidIp := is_ipv4(ip)
+	if !isValidIp {
+		color.Red("The IP introduced is TRASH")
+		os.Exit(3)
+	}
+
+	// Lo establecemos para el puerto port:
+	pdu := g.SnmpPDU{
+		Name:  oid,
+		Type:  g.IPAddress,
+		Value: ip,
+	}
+
+	fmt.Println(oid)
+
+	g.Default.Set([]g.SnmpPDU{pdu})
+
+}
 
 func is_ipv4(host string) bool {
 	parts := strings.Split(host, ".")
 	if len(parts) < 4 {
 		return false
 	}
-	for _,x := range parts {
+	for _, x := range parts {
 		if i, err := strconv.Atoi(x); err == nil {
 			if i < 0 || i > 255 {
 				return false
@@ -79,8 +228,8 @@ func is_ipv4(host string) bool {
 	return true
 }
 
-func showMenu() (int) {
-	color.Magenta("MENU")
+func showMenu() int {
+	color.Magenta("-------MENU-------")
 	fmt.Println("1. Retrive segments")
 	fmt.Println("2. Modify port")
 	fmt.Println("3. Retrieve IP layer details")
@@ -108,12 +257,11 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	// Enter target IP
-	if (ip == ""){
+	if ip == "" {
 		fmt.Print("Enter target IP: ")
 		ipN, _ := reader.ReadString('\n')
 		ip = strings.TrimSuffix(ipN, "\n")
 	}
-
 
 	isValidIp := is_ipv4(ip)
 	if !isValidIp {
@@ -121,8 +269,8 @@ func main() {
 		os.Exit(3)
 	}
 
-	if (com == ""){
-	// Enter community
+	if com == "" {
+		// Enter community
 		fmt.Print("Enter Community: ")
 		comN, _ := reader.ReadString('\n')
 		com = strings.TrimSuffix(comN, "\n")
@@ -133,24 +281,25 @@ func main() {
 	g.Default.Version = g.Version1
 	g.Default.Timeout = time.Duration(10 * time.Second)
 
-
 	err := g.Default.Connect()
 	if err != nil {
 		log.Fatalf("Connect() err: %v", err)
 	}
 	defer g.Default.Conn.Close()
 
-
-
 	exit := false
 	for !exit {
 		option := showMenu()
 
 		switch option {
-		case 1: retPorts()
-		case 2: setPort()
+		case 1:
+			retPorts()
+		case 2:
+			setPort()
 		case 3:
+			getIP()
 		case 4:
+			setIP()
 		case 5:
 			exit = true
 		default:
