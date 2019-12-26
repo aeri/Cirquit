@@ -1,8 +1,8 @@
 all:
-	go build main.go
+	go build -o Cirquit
 
 run:
 	./main
 
 clean:
-	rm -f main
+	rm -f Cirquit
