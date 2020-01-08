@@ -2,7 +2,7 @@ all:
 	go build -o Cirquit
 
 run:
-	./main
+	./Cirquit
 
 clean:
 	rm -f Cirquit

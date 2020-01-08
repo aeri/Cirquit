@@ -36,19 +36,52 @@ func retPorts() {
 	}
 }
 
-func setPort() {
+func setPortCheck() {
+    
+    var seg, port int
+    
+    var aux []string
+    
+    
+    
+    if _, err := os.Stat("ports.cfg"); err == nil {
+        fmt.Println("FILE DETECTED")
+        //File exists
+        file, _ := os.Open("ports.cfg")
+        fscanner := bufio.NewScanner(file)
+        for fscanner.Scan() {
+            if (fscanner.Text()[0] != ';'){
+                aux = strings.Split(fscanner.Text(), ":") 
+                
+                
+                seg, _ = strconv.Atoi(aux[1])
+                port, _ = strconv.Atoi(aux[0])
+                
+                setPort(seg,port)
+            }
+            
+        }
+        
 
-	oid := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
+    } else {
+        // Obtenemos primero el valor asociado al segmento 2:
+        fmt.Println("IGNORE FILE")
+        fmt.Print("Enter port: ")
+        fmt.Scanf("%d", &port)
 
-	// Obtenemos primero el valor asociado al segmento 2:
+        fmt.Print("Enter segment: ")
+        fmt.Scanf("%d", &seg)
+        
+        setPort(seg, port)
+            
+    }
+}
 
-	var seg, port int
-
-	fmt.Print("Enter port: ")
-	fmt.Scanf("%d", &port)
-
-	fmt.Print("Enter segment: ")
-	fmt.Scanf("%d", &seg)
+func setPort(seg int, port int){
+    
+    oid := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
+    
+	
 	oid1 := oid + "100" + strconv.Itoa(seg)
 
 	oid2 := oid + strconv.Itoa(port)
@@ -87,9 +120,11 @@ func setPort() {
 
 	}
 	if seg2Int == segInt {
-		color.Green("The segment has been changed")
+		c := color.New(color.FgGreen)
+		c.Println("The port " +  strconv.Itoa(port) + " has been changed" )
 	} else {
-		color.Red("ERROR")
+		c := color.New(color.FgRed)
+		c.Println("Error in port " +  strconv.Itoa(port))
 	}
 }
 
@@ -251,7 +286,7 @@ func main() {
 	}
 
 	color.Red("Welcome to Cirquit")
-	color.Yellow("Version 0.1")
+	color.Yellow("Version 0.2")
 	color.Green("Licensed under GNU Public License v3")
 	fmt.Println("")
 	reader := bufio.NewReader(os.Stdin)
@@ -295,7 +330,7 @@ func main() {
 		case 1:
 			retPorts()
 		case 2:
-			setPort()
+			setPortCheck()
 		case 3:
 			getIP()
 		case 4:
