@@ -37,51 +37,46 @@ func retPorts() {
 }
 
 func setPortCheck() {
-    
-    var seg, port int
-    
-    var aux []string
-    
-    
-    
-    if _, err := os.Stat("ports.cfg"); err == nil {
-        fmt.Println("FILE DETECTED")
-        //File exists
-        file, _ := os.Open("ports.cfg")
-        fscanner := bufio.NewScanner(file)
-        for fscanner.Scan() {
-            if (fscanner.Text()[0] != ';'){
-                aux = strings.Split(fscanner.Text(), ":") 
-                
-                
-                seg, _ = strconv.Atoi(aux[1])
-                port, _ = strconv.Atoi(aux[0])
-                
-                setPort(seg,port)
-            }
-            
-        }
-        
 
-    } else {
-        // Obtenemos primero el valor asociado al segmento 2:
-        fmt.Println("IGNORE FILE")
-        fmt.Print("Enter port: ")
-        fmt.Scanf("%d", &port)
+	var seg, port int
 
-        fmt.Print("Enter segment: ")
-        fmt.Scanf("%d", &seg)
-        
-        setPort(seg, port)
-            
-    }
+	var aux []string
+
+	if _, err := os.Stat("ports.cfg"); err == nil {
+		fmt.Println("FILE DETECTED")
+		//File exists
+		file, _ := os.Open("ports.cfg")
+		fscanner := bufio.NewScanner(file)
+		for fscanner.Scan() {
+			if fscanner.Text()[0] != ';' {
+				aux = strings.Split(fscanner.Text(), ":")
+
+				seg, _ = strconv.Atoi(aux[1])
+				port, _ = strconv.Atoi(aux[0])
+
+				setPort(seg, port)
+			}
+
+		}
+
+	} else {
+		// Obtenemos primero el valor asociado al segmento 2:
+		fmt.Println("IGNORE FILE")
+		fmt.Print("Enter port: ")
+		fmt.Scanf("%d", &port)
+
+		fmt.Print("Enter segment: ")
+		fmt.Scanf("%d", &seg)
+
+		setPort(seg, port)
+
+	}
 }
 
-func setPort(seg int, port int){
-    
-    oid := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
-    
-	
+func setPort(seg int, port int) {
+
+	oid := ".1.3.6.1.4.1.43.10.26.1.1.1.5.1."
+
 	oid1 := oid + "100" + strconv.Itoa(seg)
 
 	oid2 := oid + strconv.Itoa(port)
@@ -121,10 +116,10 @@ func setPort(seg int, port int){
 	}
 	if seg2Int == segInt {
 		c := color.New(color.FgGreen)
-		c.Println("The port " +  strconv.Itoa(port) + " has been changed" )
+		c.Println("The port " + strconv.Itoa(port) + " has been changed")
 	} else {
 		c := color.New(color.FgRed)
-		c.Println("Error in port " +  strconv.Itoa(port))
+		c.Println("Error in port " + strconv.Itoa(port))
 	}
 }
 
@@ -197,7 +192,7 @@ func getIP() {
 
 }
 
-func setIP() {
+func setIP(ip string) {
 	oid := ".1.3.6.1.4.1.43.10.28.1.1.4."
 	oidConf := ".1.3.6.1.4.1.43.10.27.1.1.1.15.1"
 
@@ -214,24 +209,8 @@ func setIP() {
 		}
 
 	}
-	// Para comprobar el valor de la dirección IP del hub:
 
 	oid += fmt.Sprintf("%v", resInt)
-
-	// Obtenemos primero el valor asociado al segmento 2:
-
-	var ip string
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Print("Enter gateway IP: ")
-	ipN, _ := reader.ReadString('\n')
-	ip = strings.TrimSuffix(ipN, "\n")
-
-	isValidIp := is_ipv4(ip)
-	if !isValidIp {
-		color.Red("The IP introduced is TRASH")
-		os.Exit(3)
-	}
 
 	// Lo establecemos para el puerto port:
 	pdu := g.SnmpPDU{
@@ -239,9 +218,6 @@ func setIP() {
 		Type:  g.IPAddress,
 		Value: ip,
 	}
-
-	fmt.Println(oid)
-
 	g.Default.Set([]g.SnmpPDU{pdu})
 
 }
@@ -280,13 +256,16 @@ func showMenu() int {
 func main() {
 	ip := ""
 	com := ""
-	if len(os.Args) >= 3 {
-		ip = os.Args[1]
-		com = os.Args[2]
+
+	args := os.Args[1:]
+
+	if len(args) >= 2 {
+		ip = args[0]
+		com = args[1]
 	}
 
 	color.Red("Welcome to Cirquit")
-	color.Yellow("Version 0.2")
+	color.Yellow("Version 0.3")
 	color.Green("Licensed under GNU Public License v3")
 	fmt.Println("")
 	reader := bufio.NewReader(os.Stdin)
@@ -322,9 +301,16 @@ func main() {
 	}
 	defer g.Default.Conn.Close()
 
+	var option int
+
 	exit := false
 	for !exit {
-		option := showMenu()
+		if len(args) >= 3 {
+			option, _ = strconv.Atoi(args[2])
+			exit = true
+		} else {
+			option = showMenu()
+		}
 
 		switch option {
 		case 1:
@@ -334,11 +320,33 @@ func main() {
 		case 3:
 			getIP()
 		case 4:
-			setIP()
+			// Para comprobar el valor de la dirección IP del hub:
+			var ip string
+			if len(args) == 4 {
+				ip = args[3]
+			} else {
+				reader := bufio.NewReader(os.Stdin)
+
+				fmt.Print("Enter gateway IP: ")
+				ipN, _ := reader.ReadString('\n')
+				ip = strings.TrimSuffix(ipN, "\n")
+			}
+
+			isValidIp := is_ipv4(ip)
+			if !isValidIp {
+				color.Red("The IP introduced is TRASH")
+				os.Exit(3)
+			}
+
+			setIP(ip)
+
 		case 5:
 			exit = true
 		default:
 			color.Red("Not a valid option\n\n")
+			if exit == true {
+				os.Exit(2)
+			}
 		}
 	}
 }
